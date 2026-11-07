@@ -1,0 +1,109 @@
+{
+ "ver": "0.1",
+ "info": {
+  "id": "s3fGDB",
+  "date": "0",
+  "viewed": 0,
+  "name": "fractal infinite zoom test",
+  "description": "Mandelbrot infinite zoom test",
+  "likes": 0,
+  "published": "Private",
+  "usePreview": 0,
+  "tags": [
+   "fractal",
+   "test",
+   "mandelbrot",
+   "zoom",
+   "infinite"
+  ],
+  "hasliked": 0,
+  "parentid": "",
+  "parentname": ""
+ },
+ "renderpass": [
+  {
+   "inputs": [
+    {
+     "id": "4dXGRr",
+     "filepath": "/presets/tex00.jpg",
+     "type": "keyboard",
+     "channel": 1,
+     "sampler": {
+      "filter": "linear",
+      "wrap": "clamp",
+      "vflip": "true",
+      "srgb": "false",
+      "internal": "byte"
+     },
+     "published": 1
+    },
+    {
+     "id": "4dXGR8",
+     "filepath": "/media/previz/buffer00.png",
+     "type": "buffer",
+     "channel": 0,
+     "sampler": {
+      "filter": "linear",
+      "wrap": "clamp",
+      "vflip": "true",
+      "srgb": "false",
+      "internal": "byte"
+     },
+     "published": 1
+    }
+   ],
+   "outputs": [
+    {
+     "id": "4dfGRr",
+     "channel": 0
+    }
+   ],
+   "code": "#define ITERATIONS 100\n#define ESCAPE_RADIUS 2.\n\nvec2 ref[ITERATIONS];\nint refMaxIter;\n\nvec2 compmul(vec2 a, vec2 b) {\n    return vec2(a.x*b.x - a.y*b.y, a.x*b.y + a.y*b.x);\n}\n\nvoid setRef(vec2 pos) {\n    vec2 z = vec2(0., 0.);\n    vec2 c = pos;\n    for (int i = 0; i < ITERATIONS; i++) {\n        z = compmul(z, z) + c;\n        ref[i] = z;\n        \n        if (length(z) > ESCAPE_RADIUS * ESCAPE_RADIUS) {\n            refMaxIter = i;\n            return;\n        }\n    }\n    \n    refMaxIter = ITERATIONS;\n}\n\nfloat getRatio(vec2 dc) {\n    vec2 dz = vec2(0., 0.);\n    int n = 0;\n    int m = 0;\n    while (n < ITERATIONS) {\n        dz = 2. * compmul(dz, ref[m]) + compmul(dz, dz) + dc;\n        m++;\n        vec2 z = ref[m] + dz;\n        float lengthz = length(z);\n        if (lengthz > ESCAPE_RADIUS * ESCAPE_RADIUS) {\n            break;\n        }\n        if (lengthz < length(dz)) {\n            dz = z;\n            m = 0;\n        }\n        n++;\n    }\n    \n    return n == ITERATIONS ? 0. : float(n) / float(ITERATIONS);\n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    vec4 state = texelFetch(iChannel0, ivec2(0., 0.), 0);\n    vec2 offset = state.xy;\n    float zoom = state.z;\n    \n    setRef(offset);\n    \n    vec2 uv = fragCoord / iResolution.xy - vec2(.5, .5);\n    uv.x *= iResolution.x / iResolution.y;\n    \n    float t = getRatio(uv / zoom);\n    t = mod(t * 10., 1.);\n    fragColor = vec4(t, t, t, 1.);\n}",
+   "name": "Image",
+   "description": "",
+   "type": "image"
+  },
+  {
+   "inputs": [
+    {
+     "id": "4dXGRr",
+     "filepath": "/presets/tex00.jpg",
+     "type": "keyboard",
+     "channel": 1,
+     "sampler": {
+      "filter": "linear",
+      "wrap": "clamp",
+      "vflip": "true",
+      "srgb": "false",
+      "internal": "byte"
+     },
+     "published": 1
+    },
+    {
+     "id": "4dXGR8",
+     "filepath": "/media/previz/buffer00.png",
+     "type": "buffer",
+     "channel": 0,
+     "sampler": {
+      "filter": "linear",
+      "wrap": "clamp",
+      "vflip": "true",
+      "srgb": "false",
+      "internal": "byte"
+     },
+     "published": 1
+    }
+   ],
+   "outputs": [
+    {
+     "id": "4dXGR8",
+     "channel": 0
+    }
+   ],
+   "code": "#define ZOOM_CHANGE 2.\n#define ZOOM_MIN .01\n\n#define KEY_ZOOM_IN ivec2(87, 0)\n#define KEY_ZOOM_OUT ivec2(83, 0)\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    if (fragCoord.x >= 1. || fragCoord.y >= 1.)\n        discard;\n    \n    // (pos.x, pos.y, zoom, _)\n    vec4 state = texelFetch(iChannel0, ivec2(0, 0), 0);\n    if (iFrame == 0)\n        state = vec4(0., 0., .5, 0.);\n    \n    float dzoom = 1.;\n    if (texelFetch(iChannel1, KEY_ZOOM_IN, 0).x > 0.)\n        dzoom = pow(ZOOM_CHANGE, iTimeDelta);\n    if (texelFetch(iChannel1, KEY_ZOOM_OUT, 0).x > 0.)\n        dzoom = pow(1. / ZOOM_CHANGE, iTimeDelta);\n    \n    if (dzoom != 1.) {\n        vec2 uv = iMouse.xy / iResolution.xy;\n        vec2 pos = (uv - vec2(.5, .5)) * 2.;\n        pos.x *= iResolution.x / iResolution.y;\n        pos = pos / state.z + state.xy;\n        state.xy = pos + (state.xy - pos) / dzoom;\n        state.z *= dzoom;\n    }\n    if (state.z < ZOOM_MIN)\n        state.z = ZOOM_MIN;\n    \n    fragColor = state;\n}",
+   "name": "Buffer A",
+   "description": "",
+   "type": "buffer"
+  }
+ ]
+}

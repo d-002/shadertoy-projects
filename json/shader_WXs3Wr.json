@@ -1,0 +1,35 @@
+{
+ "ver": "0.1",
+ "info": {
+  "id": "WXs3Wr",
+  "date": "1742919699",
+  "viewed": 106,
+  "name": "Prime detection",
+  "description": "Shader for prime detection",
+  "likes": 0,
+  "published": "Public",
+  "usePreview": 0,
+  "tags": [
+   "detection",
+   "prime"
+  ],
+  "hasliked": 0,
+  "parentid": "",
+  "parentname": ""
+ },
+ "renderpass": [
+  {
+   "inputs": [],
+   "outputs": [
+    {
+     "id": "4dfGRr",
+     "channel": 0
+    }
+   ],
+   "code": "// prime detection\nbool isPrime(int n) {\n    if (n < 2) return false;\n    if ((n&1) == 0) return false;\n\n    for (int i = 3; i*i <= n; i += 2)\n        if (n%i == 0) return false;\n\n    return true;\n}\n\n// coloring\nvec4 col(vec2 pos) {\n    vec2 t = pos/iResolution.xy;\n\n    return vec4(\n        cos(t.x),\n        sin(t.y*1.5),\n        cos((t.x+t.y)*.3),\n        1.\n    )*.5 + .5;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord)\n{\n    // selecting a prime (pos + scrolling)\n    float x = fragCoord.x;\n    float y = (iResolution.y-fragCoord.y-1.) + floor(iTime*300.);\n    int i = int(x + iResolution.x*y);\n\n    if (isPrime(i)) fragColor = col(vec2(x, y));\n    else fragColor = vec4(0., 0., 0., 1.);\n}",
+   "name": "Image",
+   "description": "",
+   "type": "image"
+  }
+ ]
+}

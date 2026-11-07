@@ -1,0 +1,37 @@
+{
+ "ver": "0.1",
+ "info": {
+  "id": "w3SGWz",
+  "date": "1743964809",
+  "viewed": 112,
+  "name": "Easy background lights",
+  "description": "Simple background generator with kinds of lights and dithering",
+  "likes": 2,
+  "published": "Public",
+  "usePreview": 0,
+  "tags": [
+   "simple",
+   "background",
+   "presentation",
+   "wallpaper"
+  ],
+  "hasliked": 0,
+  "parentid": "",
+  "parentname": ""
+ },
+ "renderpass": [
+  {
+   "inputs": [],
+   "outputs": [
+    {
+     "id": "4dfGRr",
+     "channel": 0
+    }
+   ],
+   "code": "//vec3 base_color = vec3(.96, .98, 1.);\nvec3 base_color = vec3(.23, .2, .2);\n\nvec2 light0_pos = vec2(.2, .1);\nvec2 light1_pos = vec2(1.5, .4);\nvec2 light2_pos = vec2(.4, 1.2);\n\nfloat light0_radius = .5;\nfloat light1_radius = .7;\nfloat light2_radius = .4;\n\nvec3 light0_color = vec3(.44, .65, 1.);\nvec3 light1_color = vec3(.72, 1., .72);\nvec3 light2_color = vec3(1., .7, .3);\n\nfloat factor = .5;\n\nfloat dithering = .05;\nfloat dithering_size = 3.;\n\nfloat smooth_step(float t) {\n    return (3. - 2.*t)*t*t;\n}\n\nfloat dot2(vec2 u) {\n    return u.x*u.x + u.y*u.y;\n}\n\nfloat rand(vec2 co){ return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453); }\n\nfloat get_t(float r, vec2 uv, vec2 target) {\n    if (r == 0.) return 0.;\n\n    float t = dot2(uv-target)/(r*r);\n    \n    return exp(-t-1.)*factor;\n}\n\nvec2 round_uv(vec2 uv) {\n    uv *= iResolution.y;\n    uv.x -= mod(uv.x, dithering_size);\n    uv.y -= mod(uv.y, dithering_size);\n    \n    return uv/iResolution.y;\n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    // uv is not normalized (sorry) to avoid stretching due to display ratio\n    vec2 uv = fragCoord.xy/iResolution.y;\n\n    float t0 = get_t(light0_radius, uv, light0_pos);\n    float t1 = get_t(light1_radius, uv, light1_pos);\n    float t2 = get_t(light2_radius, uv, light2_pos);\n    \n    fragColor = vec4(base_color + (light0_color-base_color)*t0 + (light1_color-base_color)*t1 + (light2_color-base_color)*t2, 1.);\n    \n    // dithering\n    float mult = rand(round_uv(uv))*(dithering*2.) + 1.-dithering;\n    fragColor *= mult;\n}\n",
+   "name": "Image",
+   "description": "",
+   "type": "image"
+  }
+ ]
+}

@@ -1,0 +1,35 @@
+{
+ "ver": "0.1",
+ "info": {
+  "id": "wXVXRK",
+  "date": "0",
+  "viewed": 0,
+  "name": "Voronoi thumbnail",
+  "description": "Voronoi thumbnail for video",
+  "likes": 0,
+  "published": "Private",
+  "usePreview": 0,
+  "tags": [
+   "voronoi",
+   "thumbnail"
+  ],
+  "hasliked": 0,
+  "parentid": "",
+  "parentname": ""
+ },
+ "renderpass": [
+  {
+   "inputs": [],
+   "outputs": [
+    {
+     "id": "4dfGRr",
+     "channel": 0
+    }
+   ],
+   "code": "vec3 col1 = vec3(.7, .4, .1);\nvec3 col2 = vec3(.3, .4, .4);\nvec3 col3 = vec3(.4, .1, .8);\n\nvec4 getColor(vec2 uv) {\n    vec3 color = col1 + (col2-col1) * uv.x;\n    color += (col3-color) * (1.-uv.y)*(.8+.2*uv.x);\n    \n    return vec4(color, 1.);\n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    vec2 uv = fragCoord/iResolution.xy;\n    \n    vec2 t = vec2(\n        (uv.x-.5) * iResolution.x/iResolution.y + .5,\n        uv.y);\n    \n    if (t.x < 0. || t.x >= 1.) fragColor = vec4(0., 0., 0., 1.);\n    else fragColor = getColor(t);\n}",
+   "name": "Image",
+   "description": "",
+   "type": "image"
+  }
+ ]
+}

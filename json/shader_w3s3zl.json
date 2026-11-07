@@ -1,0 +1,52 @@
+{
+ "ver": "0.1",
+ "info": {
+  "id": "w3s3zl",
+  "date": "1743381905",
+  "viewed": 93,
+  "name": "GitHub Skyline - bad raymarching",
+  "description": "A 3D, raymarched GitHub skyline clone but cursed and inefficient",
+  "likes": 1,
+  "published": "Public",
+  "usePreview": 0,
+  "tags": [
+   "3d",
+   "raymarching",
+   "skyline",
+   "github"
+  ],
+  "hasliked": 0,
+  "parentid": "",
+  "parentname": ""
+ },
+ "renderpass": [
+  {
+   "inputs": [
+    {
+     "id": "XdX3Rn",
+     "filepath": "/media/a/52d2a8f514c4fd2d9866587f4d7b2a5bfa1a11a0e772077d7682deb8b3b517e5.jpg",
+     "type": "texture",
+     "channel": 0,
+     "sampler": {
+      "filter": "mipmap",
+      "wrap": "repeat",
+      "vflip": "true",
+      "srgb": "false",
+      "internal": "byte"
+     },
+     "published": 1
+    }
+   ],
+   "outputs": [
+    {
+     "id": "4dfGRr",
+     "channel": 0
+    }
+   ],
+   "code": "#define PI 3.14159265359\n\nconst float block_size = .3;\n\nconst float fov = 60.*PI/180.;\nconst float D = .5/tan(fov/2.);\n\nconst float step = .5;\nconst float threshold = .01;\nconst float far2 = 1000.;\nconst float far = sqrt(far2);\nconst int max_steps = 10000;\n\nconst vec4 base_color = vec4(.9, .5, 1., 1.);\nconst vec4 object_albedo = vec4(1., 1., 1., 1.);\nconst float object_roughness = .5;\nconst float specular_exponent = 16.;\n\nconst vec3 light_pos = vec3(3., 3., 3.);\n\nconst float ambient = .1;\nconst float occlusion_speed = .015;\n\nconst int n_bounces = 16;\n\nvec3 rotate_point(vec3 point, vec3 rot) {\n    float ca = cos(rot.x), sa = sin(rot.x);\n    float cb = cos(rot.y), sb = sin(rot.y);\n    float cc = cos(rot.z), sc = sin(rot.z);\n\n    mat3 x_mat = mat3(1, 0, 0, 0, ca, -sa, 0, sa, ca);\n    mat3 y_mat = mat3(cb, 0, sb, 0, 1, 0, -sb, 0, cb);\n    mat3 z_mat = mat3(cc, -sc, 0, sc, cc, 0, 0, 0, 1);\n    mat3 rot_mat = y_mat * z_mat * x_mat;\n\n    return rot_mat * point;\n}\n\nfloat atan2(float y, float x) {\n    if (x == 0.) {\n        if (y == 0.) return 0.; // supposed to be undefined but eeh\n        if (y < 0.) return -PI*.5;\n        return PI*.5;\n    }\n\n    float at = atan(y/x);\n    if (x > 0.) return at;\n    if (y < 0.) return at - PI;\n    return at + PI;\n}\n\nvec3 bounce(vec3 ray, vec3 normal) {\n    return ray - 2.*dot(ray, normal)*normal;\n}\n\nvec3 cam_rot() {\n    return vec3(.3, iTime*.1, 0.);\n}\n\nvec3 cam_pos() {\n    vec3 rot = cam_rot();\n    return rotate_point(vec3(0., 3., 10.), rot);\n}\n\nfloat get_bar_height(int day) {\n    float h = float(day*137 % 143 ^ 17) / 143.;\n    h = h*h*3.;\n    return h*h + 1.;\n}\n\nfloat max3(float a, float b, float c) {\n    return a > b ? a > c ? a : c : b > c ? b : c;\n}\n\nfloat block_sdf(vec3 center, vec3 half_size, vec3 pos, out vec3 normal) {\n    // cube\n    float dx = abs(pos.x-center.x)-half_size.x;\n    float dy = abs(pos.y-center.y)-half_size.y;\n    float dz = abs(pos.z-center.z)-half_size.z;\n    \n    if (dx > dy) {\n         if (dx > dz) {\n             normal = vec3(pos.x > 0. ? 1. : -1., 0., 0.);\n             return dx;\n         }\n         \n         normal = vec3(0., 0., pos.z > 0. ? 1. : -1.);\n         return dz;\n    }\n    if (dy > dz) {\n         normal = vec3(0., pos.y > 0. ? 1. : -1., 0.);\n         return dy;\n    }\n\n    normal = vec3(0., 0., pos.z > 0. ? 1. : -1.);\n    return dz;\n}\n\nfloat debug_sdf(vec3 pos, out vec3 normal) {\n    // modular position\n    pos = vec3(mod(pos.x+4., 8.)-4., mod(pos.y+4., 8.)-4., mod(pos.z+4., 8.)-4.);\n\n    // sphere\n    normal = normalize(pos);\n    //return distance(pos, v_zero) - 2.;\n\n    return block_sdf(vec3(0., 0., 0.), vec3(2., 2., 2.), pos, normal);\n}\n\nfloat skyline_sdf(vec3 pos, out vec3 normal) {\n    float min_dist = far2;\n\n    vec3 size = vec3(block_size*.5, 0., block_size*.5);\n    \n    // skyline\n    for (int i = 0; i < 365; i++) {\n        float row = float(i%7);\n        float col = float(i/7);\n        \n        size.y = get_bar_height(i)*block_size*.5;\n        \n        vec3 n;\n        float d = block_sdf(vec3((-25.5 + col)*block_size, size.y, -.3 + row*block_size), size, pos, n);\n        \n        if (d < min_dist) {\n            min_dist = d;\n            normal = n;\n        }\n    }\n    \n    // stand blocks\n    \n    return min_dist;\n}\n\nfloat sdf(vec3 pos, out vec3 normal, out bool has_escaped) {\n    vec3 normal_object;\n    float d1 = skyline_sdf(pos, normal_object);\n    \n    vec3 normal_escape = -normalize(pos);\n    float d2 = far - length(pos);\n    \n    if (d1 < d2) {\n        normal = normal_object;\n        has_escaped = false;\n        return d1;\n    }\n    \n    normal = normal_escape;\n    has_escaped = d2 < threshold;\n    return d2;\n}\n\nbool raymarch(vec3 pos, vec3 ray, out vec3 final_pos, out vec3 normal, out float n_steps) {\n    for(int steps = 0; steps < max_steps; steps++) {\n        bool has_escaped;\n        float d = sdf(pos, normal, has_escaped);\n\n        n_steps = float(steps) + d/threshold; // smoothing\n        final_pos = pos;\n        \n        if (has_escaped)\n            return false;\n        if (d < threshold)\n            return true;\n        \n        pos += ray*d*step;\n    }\n\n    n_steps = float(max_steps);\n    final_pos = pos;\n    return false;\n}\n\nvec4 get_color(vec3 pos, vec3 ray) {\n    vec4 color = vec4(0., 0., 0., 1.);\n    float roughness_product = 1.;\n    \n    // blinn-phong \n    vec3 light_dir = normalize(light_pos-pos);\n    // or directional light\n    //vec3 light_dir = vec3(.707, 0., .707);\n\n    // start at 1 to save a subtraction\n    for (int i = 1; i <= n_bounces; i++) {\n        vec3 final_pos, normal;\n        float n_steps; // floating point for smoothing\n        bool hit = raymarch(pos, ray, final_pos, normal, n_steps);\n        \n        vec4 diffuse;\n        float roughness, occlusion, specular;\n        if (hit && i < n_bounces) {\n            // hit an object\n\n            // bounce\n            pos = final_pos+normal*threshold*step*2.;\n            ray = bounce(ray, normal);\n\n            diffuse = object_albedo * clamp(dot(normal, -light_dir), ambient, 1.);\n            roughness = object_roughness;\n\n            occlusion = 1. / exp(occlusion_speed * n_steps * step);\n\n            specular = pow(clamp(dot(ray, -light_dir), 0., 1.), specular_exponent) * roughness_product;\n        }\n        else {\n            // hit the border, or timed out\n            diffuse = texture(iChannel0, vec2(atan2(normal.z, normal.x)*.5/PI+.5, normal.y*.5+.5));\n            roughness = 0.; // 0 to use the skybox color fully\n            occlusion = 1.;\n            specular = 0.;\n        }\n        \n        color += diffuse * (1.-roughness) * roughness_product * base_color;\n        roughness_product *= roughness*occlusion;\n        \n        color += specular;\n        \n        if (!hit) break;\n    }\n    \n    return color;\n}\n\nvec3 get_ray(vec2 uv) {\n    vec3 pos = normalize(vec3((uv.x-.5)*iResolution.x/iResolution.y, uv.y-.5, -D));\n    \n    return rotate_point(pos, cam_rot());\n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    vec2 uv = fragCoord / iResolution.xy;\n    vec3 ray = get_ray(uv);\n\n    fragColor = get_color(cam_pos(), ray);\n}",
+   "name": "Image",
+   "description": "",
+   "type": "image"
+  }
+ ]
+}

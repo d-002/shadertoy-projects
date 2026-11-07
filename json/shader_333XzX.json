@@ -1,0 +1,34 @@
+{
+ "ver": "0.1",
+ "info": {
+  "id": "333XzX",
+  "date": "0",
+  "viewed": 0,
+  "name": "voronoi euclidean to manhattan",
+  "description": "voronoi euclidean to manhattan for voronoi video",
+  "likes": 0,
+  "published": "Private",
+  "usePreview": 0,
+  "tags": [
+   "voronoi"
+  ],
+  "hasliked": 0,
+  "parentid": "",
+  "parentname": ""
+ },
+ "renderpass": [
+  {
+   "inputs": [],
+   "outputs": [
+    {
+     "id": "4dfGRr",
+     "channel": 0
+    }
+   ],
+   "code": "const float t0 = 6.;\nconst float t1 = 12.;\nconst float circle_radius2 = .00003; // proportion of width\n\nconst int n_cells = 10;\nconst vec2[] cells = vec2[](\n    vec2(0.38169262879964316, 0.8817086650590519),\n    vec2(0.1671580170462431, 0.31333889659991154),\n    vec2(0.80218524413359, 0.694671498138937),\n    vec2(0.49118422546979235, 0.43110684372813557),\n    vec2(0.8514804925432095, 0.49706238593318164),\n    vec2(0.008793329044514353, 0.5371998112465282),\n    vec2(0.9224249273089755, 0.08283925837937023),\n    vec2(0.7483818683465522, 0.5151924175974714),\n    vec2(0.8489042596769841, 0.45542259174649924),\n    vec2(0.09225487387453224, 0.481988565298774)\n);\n\nconst vec4[] colors = vec4[](\n    vec4(0.524655359819864, 0.8659237998875455, 0.8899470811361201, 1.0),\n    vec4(0.9974032296952358, 0.9475373133811367, 0.6886173707049662, 1.0),\n    vec4(0.6036492579602534, 0.5574397992139599, 0.7849597100033177, 1.0),\n    vec4(0.9780467584131312, 0.8715836405561563, 0.7623990079729297, 1.0),\n    vec4(0.59465373599536, 0.8369654156166317, 0.8816453489921936, 1.0),\n    vec4(0.9379407178670212, 0.6474834343059083, 0.9797067897416765, 1.0),\n    vec4(0.5970681586551614, 0.757700580558248, 0.717331733102152, 1.0),\n    vec4(0.7647202435158983, 0.999830055405496, 0.8903858693330176, 1.0),\n    vec4(0.5249849497308856, 0.9801351544604074, 0.7936791008860802, 1.0),\n    vec4(0.7738447970294986, 0.6299005363802793, 0.8046513012074368, 1.0)\n);\n\nfloat dist2(vec2 a, vec2 b, float t) {\n    float p = 2.-t;\n    return pow(abs(a.x-b.x), p) + pow(abs(a.y-b.y) * iResolution.y/iResolution.x, p);\n}\n\nfloat real_dist2(vec2 a, vec2 b) {\n    vec2 diff = vec2(\n        abs(a.x-b.x),\n        abs(a.y-b.y) * iResolution.y/iResolution.x);\n    return dot(diff, diff);\n}\n\n// from easings.net\nfloat easeInOutCubic(float x) {\n    return x < 0.5 ? 4. * x * x * x : 1. - pow(-2. * x + 2., 3.) / 2.;\n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    vec2 uv = fragCoord/iResolution.xy;\n    float t = easeInOutCubic(clamp((iTime-t0) / (t1-t0), 0., 1.));\n\n    int closest_i = -1;\n    float closest_d = 0.;\n    \n    for (int i = 0; i < n_cells; i++) {\n        float d = dist2(uv, cells[i], t);\n        if (closest_i == -1 || d < closest_d) {\n            closest_i = i;\n            closest_d = d;\n        }\n    }\n    \n    // sites in black\n    if (real_dist2(uv, cells[closest_i]) < circle_radius2)\n        fragColor = vec4(0., 0., 0., 1.);\n    // colored diagram\n    else\n        fragColor = colors[closest_i];\n}",
+   "name": "Image",
+   "description": "",
+   "type": "image"
+  }
+ ]
+}

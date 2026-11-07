@@ -1,0 +1,52 @@
+{
+ "ver": "0.1",
+ "info": {
+  "id": "fclXDj",
+  "date": "1775907919",
+  "viewed": 40,
+  "name": "Shaun Martin Focus cover style",
+  "description": "Shaun Martin's Focus album cover-like shader",
+  "likes": 2,
+  "published": "Public",
+  "usePreview": 0,
+  "tags": [
+   "white",
+   "black",
+   "cover",
+   "shaunmartin"
+  ],
+  "hasliked": 0,
+  "parentid": "",
+  "parentname": ""
+ },
+ "renderpass": [
+  {
+   "inputs": [
+    {
+     "id": "XdX3Rn",
+     "filepath": "/media/a/52d2a8f514c4fd2d9866587f4d7b2a5bfa1a11a0e772077d7682deb8b3b517e5.jpg",
+     "type": "texture",
+     "channel": 0,
+     "sampler": {
+      "filter": "mipmap",
+      "wrap": "repeat",
+      "vflip": "true",
+      "srgb": "false",
+      "internal": "byte"
+     },
+     "published": 1
+    }
+   ],
+   "outputs": [
+    {
+     "id": "4dfGRr",
+     "channel": 0
+    }
+   ],
+   "code": "#define BAND_SIZE .03\n#define ANGLE .2\n#define AALIAS 4\n\nfloat get_col(vec2 uv) {\n    float c = cos(ANGLE), s = sin(ANGLE);\n    vec2 coord = vec2(uv.x * iResolution.x / iResolution.y, uv.y) / BAND_SIZE;\n    coord.y -= iTime;\n    coord = vec2(coord.x * c - coord.y * s, coord.x * s + coord.y * c);\n    \n    vec3 sample_rgb = texture(iChannel0, uv).xyz;\n    float brightness = dot(sample_rgb, vec3(0.2126, 0.7152, 0.0722));\n    float max_dist = brightness * .5;\n    \n    return abs(fract(coord.y) - .5) < max_dist ? 1. : 0.;\n}\n\nfloat aalias(vec2 fragCoord) {\n    float col = 0.;\n    \n    for (int x = 0; x < AALIAS; x++)\n    for (int y = 0; y < AALIAS; y++) {\n        vec2 shift = vec2(float(x) / float(AALIAS), float(y) / float(AALIAS));\n        vec2 uv = (fragCoord + shift) / iResolution.xy;\n\n        col += get_col(uv);\n    }\n    \n    return col / float(AALIAS * AALIAS);\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    float col = aalias(fragCoord);\n    fragColor = vec4(col, col, col, 1.0);\n}",
+   "name": "Image",
+   "description": "",
+   "type": "image"
+  }
+ ]
+}

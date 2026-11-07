@@ -1,0 +1,108 @@
+{
+ "ver": "0.1",
+ "info": {
+  "id": "7fXSRs",
+  "date": "1775734225",
+  "viewed": 142,
+  "name": "Polynomial fractal explorer test",
+  "description": "Polynomial-like mandelbrot fractal test thing\nSlice in $z_{n+k} = \\sum_{i=0}^{k-1} c_iz_{n+i}^{p_i}$\nControls: w/s for zoom with mouse held for origin, go back to frame 0 to reset (smoother in play mode)\n",
+  "likes": 1,
+  "published": "Public",
+  "usePreview": 0,
+  "tags": [
+   "fractal",
+   "test",
+   "interactive",
+   "explorer"
+  ],
+  "hasliked": 0,
+  "parentid": "",
+  "parentname": ""
+ },
+ "renderpass": [
+  {
+   "inputs": [
+    {
+     "id": "4dXGRr",
+     "filepath": "/presets/tex00.jpg",
+     "type": "keyboard",
+     "channel": 1,
+     "sampler": {
+      "filter": "linear",
+      "wrap": "clamp",
+      "vflip": "true",
+      "srgb": "false",
+      "internal": "byte"
+     },
+     "published": 1
+    },
+    {
+     "id": "4dXGR8",
+     "filepath": "/media/previz/buffer00.png",
+     "type": "buffer",
+     "channel": 0,
+     "sampler": {
+      "filter": "linear",
+      "wrap": "clamp",
+      "vflip": "true",
+      "srgb": "false",
+      "internal": "byte"
+     },
+     "published": 1
+    }
+   ],
+   "outputs": [
+    {
+     "id": "4dfGRr",
+     "channel": 0
+    }
+   ],
+   "code": "#define MAX_ITERATIONS 100\n#define BAILOUT_RADIUS 10.\n#define AALIAS 2\n\n// from shadertoy/csKcDm\nconst int NUM_COLORS = 16;\nconst vec3[] colors = vec3[](\n    vec3( 66,  30,  15) / 255.,\n    vec3( 25,   7,  26) / 255.,\n    vec3(  9,   1,  47) / 255.,\n    vec3(  4,   4,  73) / 255.,\n    vec3(  0,   7, 100) / 255.,\n    vec3( 12,  44, 138) / 255.,\n    vec3( 24,  82, 177) / 255.,\n    vec3( 57, 125, 209) / 255.,\n    vec3(134, 181, 229) / 255.,\n    vec3(211, 236, 248) / 255.,\n    vec3(241, 233, 191) / 255.,\n    vec3(248, 201,  95) / 255.,\n    vec3(255, 170,   0) / 255.,\n    vec3(204, 128,   0) / 255.,\n    vec3(153,  87,   0) / 255.,\n    vec3(106,  52,   3) / 255.\n);\n\nvec2 compmul(vec2 a, vec2 b) {\n    return vec2(a.x*b.x-a.y*b.y, a.x*b.y+a.y*b.x);\n}\n\nvec2 compexp(vec2 z, float e) {\n    float r = sqrt(dot(z, z));\n    float th = atan(z.y,z.x);\n    r = pow(r, e);\n    th = th * e;\n    return vec2(r * cos(th), r * sin(th));\n}\n\n// pos: for additional sampling if needed\n// returns a smoothed iteration\nfloat fractal(vec2 a, vec2 b, vec2 pos) {\n    vec2 exponents = vec2(1., 3.);\n    // outer max is not needed, only here for photosensitivity triggers\n    float log_ = log(max(2., max(exponents.x, exponents.y)));\n\n    for (int i = 0; i < MAX_ITERATIONS; i++) {\n        vec2 coeff0 = vec2(.99 + .005 * cos(iTime), .01 + .005 * sin(iTime));\n        vec2 coeff1 = vec2(1., 0.);\n        vec2 c =\n            compmul(coeff0, compexp(a, exponents.x)) +\n            compmul(coeff1, compexp(b, exponents.y));\n        \n        a = b;\n        b = c;\n        if (dot(c, c) > BAILOUT_RADIUS * BAILOUT_RADIUS) {\n            float log_zn = log(dot(c, c)) / 2.;\n            float nu = log(log_zn / log_) / log_;\n            return (float(i) + 1. - nu) / float(MAX_ITERATIONS);\n        }\n    }\n    \n    return 1.;\n}\n\nvec3 colorize(float it) {\n    if (it == 1.)\n        return vec3(0., 0., 0.);\n\n    //return vec3(0.5) + vec3(0.5) * cos(6.28 * (3.14 * it + vec3(0.0, 0.1, 0.16)));\n    float i = mod(it * float(MAX_ITERATIONS), float(NUM_COLORS));\n    int i0 = int(floor(i));\n    vec3 col0 = colors[i0];\n    vec3 col1 = colors[(i0 + 1) % NUM_COLORS];\n    return mix(col0, col1, fract(i));\n}\n\nvec4 aalias(vec2 fragCoord) {\n    vec4 state = texelFetch(iChannel0, ivec2(0., 0.), 0);\n    vec2 offset = state.xy;\n    float zoom = state.z;\n    \n    vec3 col = vec3(0., 0., 0.);\n    #ifdef AALIAS\n    for (int dx = 0; dx < AALIAS; dx++)\n    for (int dy = 0; dy < AALIAS; dy++) {\n        vec2 add = vec2(float(dx)/float(AALIAS), float(dy)/float(AALIAS));\n        vec2 uv = (fragCoord + add) / iResolution.xy;\n    #else\n        vec2 uv = fragCoord / iResolution.xy;\n    #endif /* AALIAS */\n        vec2 pos = (uv - vec2(.5, .5)) * 2.;\n        pos.x *= iResolution.x / iResolution.y;\n        pos = pos / zoom + offset;\n\n        vec2 a = vec2(0., 0.);\n        vec2 b = pos;\n        \n        col += colorize(fractal(a, b, pos));\n    #ifdef AALIAS\n    }\n    \n    return vec4(col / float(AALIAS * AALIAS), 1.);\n    #else\n    return vec4(col, 1.);\n    #endif /* AALIAS */\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    fragColor = aalias(fragCoord);\n}\n\n/*\n(this is a work in progress if you couldn't tell, will come back to this)\n\nok like I need to write stuff down\nHOW MANY DEGREES OF FING FREEDOM\nso lets formalize this\nit's like z_{n+1} = z^p_n + z_{n-1}\nbut you could also add exponents to x_{n-1}\nor use even more terms but that's just too much to think about\nbut even with this you have the two start terms (4 dimensions)\nand the exponent(s) (1, 2 dimensions?)\nand finally the complex coefficients in the polynomial? so in this case 4?\nthat's 10 FING DIMENSIONS for a degree 2 polynomial\ndon't get me started on complex exponents but I think this is hard to compute or what\nso for a name this would be \"polynomial memory mandelbrot sets\"? \"snowflakes\"? or that would be for just a subset of them\n\ngeneralized equation: $z_{n+k} = \\sum_{i=0}^{k-1} c_iz_{n+i}^{p_i}$\n\nshapes observations for various slices (will keep k = 2 for now):\n\n- if c_0 = pos, c_1 = 1, p_0 = 0, p_1 = 2, a = whatever, b = 0 we get the mandelbrot set. changing p_1 can give more or less \"bulbs\".\n  changing b to pos skips an iteration, changing it to a constant value moves around in the 2 remaining directions.\n  it's basically changing the initial z value in the mandelbrot logic loop\n- if c_0 = constant, c_1 = 1, p_0 = 0, p_1 = 2, a = whatever, b = pos we get a julia set.\n  cool thing I noticed: here too changing the exponent changes the number of \"branches\", but lowering it down to zero kind of shows why\n  we always get the same repeating pattern and no other emergent properties. a \"simple\" fractal just made from repeating the same pattern, going\n  in one place maps back to the original thing, can also explain mandelbrot's self similarity.\n  also maybe related to why julia sets appear in mandelbrot? transformations that \"swap the parameters\" and map to such a space are enough to\n  \"lower the amount of detail\"? ofc I think there's extra detail on\n  the sides of these things but anyway)\n- multiplying the real part of a coefficient in these cases just makes the shape grow or shrink, changing its imaginary part makes things \"rotate\"\n  but that also means the self similar parts twist around their own center, recursively.\n  but for the mandelbrot set it only makes it a linear transformation? like a rotation for c_1 = (cos t, sin t). this doesn't seem to happen\n  to julia sets, weird, maybe because mandelbrot uses a constant c over all iterations so it keeps track of the global position across all iterations?\n  this would make sense because it kind of nullifies the recursive spiralling behavior found in julia sets\n- if c_0 = c_1 = 1, but p_0 = 1 and p_1 = 2, a = 0, b = pos, we get \"snowflakes\". this set of parameters introduces drag / memory, now the alignment\n  of a position with respect to the previous one interfere. again, changing p_1 changes the number of branches. around 1.7 we get a \"bowtie\".\n  if p_1 = .5, this is \"beetle\". after p_1 >= 5 I like to call them \"rings\" or \"sandworms\".\n  interestingly, everything diverges except 0 in these snowflakes, much like most julia fractals actually.\n  this is because abs(a_n) = abs(a_{n-1}^2 + a_{n-2}) = abs((a_{n-2}^2 + a_{n-3})^2 + a_{n-2}) >= abs(a_{n-2}^4 + a_{n-2}) >= abs(a_{n-2})\n  changing c_0 and c_1 real values change the impact the previous and second previous values have, nothing notable except the fact that\n  if c_0 > c_1 there is little change and lots of drag, leading to more stable shapes. actually I think it's the exact same shape but rescaled,\n  so apparently doing z=z^2 a bunch doesn't change the overall shape much? or like it only rotates it? I know the corresponding julia set is just a\n  circle, but it's weird that we don't see any angle change.\n  here again, c_1 can be thought of as a transformation, it's weird that this does not behave like julia sets and instead like mandelbrot, this\n  suggests some very strong symmetry or stability. c_0 on the other hand allows for spirally patterns and triangles, I think meaning things kind of\n  rotate every iteration by a number related to the number of branches on the snowflake, appendices in a julia set or \"heads\" in a mandelbrot one.\n  this creates spirals but in the case the number of branches works well with the rotation this can create triangles (p_1 = 2), octagons (p_1 = 3) etc\n- if both powers are 1, then this is just a fibonacci sequence and the patterns diverge quickly. if one is close to zero, then the operation is close\n  to adding the associated coefficient every time with less or no memory of the previous iterations.\n- if c_0 has a norm less than 1 then this is no longer a sum that constantly increases in norm, instead there is some damping allowing regions of\n  convergence. the imaginary part of c_0 brings back spiralling patterns in the same way as julia sets do, a strictly real part greater than 0 gives\n  \"clovers\". c_0 = 0 cancels out the memory and computes a power of the original value, giving a circle and c_0 < 0 perfectly cancels out the previous\n  value, making more snowflakes. for p_1 values where the number of branches is odd, more triangle-like shapes are produced.\n- with p_0 > 1, p_1 > 2, this is \"coastal\" fractals, that do not diverge as much. they are less interesting than the mandelbrot set since they include\n  less complexity except in small islands around the main part. for the main part, the complexity is similar to that of non-diverging julia sets.\n  in the islands on the side, it seems as though different \"coastal\" sets with different c_0 and c_1 can be seen, similar to how distorted mandelbrot\n  satellites are inside the mandelbrot set.\n- with noninteger p_0, the complexity is higher due to the self-similar discontinuities, just like julia sets with a noninteger power.\n- raising the power of p_0 higher than that of p_1 seems to make the system collapse more and more into a circle, indicating that the overall\n  operation is similar to just raising the original value by a power multiple times.\nstill need to explore: a != 0, more memory\n*/",
+   "name": "Image",
+   "description": "",
+   "type": "image"
+  },
+  {
+   "inputs": [
+    {
+     "id": "4dXGRr",
+     "filepath": "/presets/tex00.jpg",
+     "type": "keyboard",
+     "channel": 1,
+     "sampler": {
+      "filter": "linear",
+      "wrap": "clamp",
+      "vflip": "true",
+      "srgb": "false",
+      "internal": "byte"
+     },
+     "published": 1
+    },
+    {
+     "id": "4dXGR8",
+     "filepath": "/media/previz/buffer00.png",
+     "type": "buffer",
+     "channel": 0,
+     "sampler": {
+      "filter": "linear",
+      "wrap": "clamp",
+      "vflip": "true",
+      "srgb": "false",
+      "internal": "byte"
+     },
+     "published": 1
+    }
+   ],
+   "outputs": [
+    {
+     "id": "4dXGR8",
+     "channel": 0
+    }
+   ],
+   "code": "#define ZOOM_CHANGE 2.\n#define ZOOM_MIN .01\n\n#define KEY_ZOOM_IN ivec2(87, 0)\n#define KEY_ZOOM_OUT ivec2(83, 0)\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    if (fragCoord.x >= 1. || fragCoord.y >= 1.)\n        discard;\n    \n    // (pos.x, pos.y, zoom, _)\n    vec4 state = texelFetch(iChannel0, ivec2(0, 0), 0);\n    if (iFrame == 0)\n        state = vec4(0., 0., .5, 0.);\n    \n    float dzoom = 1.;\n    if (texelFetch(iChannel1, KEY_ZOOM_IN, 0).x > 0.)\n        dzoom = pow(ZOOM_CHANGE, iTimeDelta);\n    if (texelFetch(iChannel1, KEY_ZOOM_OUT, 0).x > 0.)\n        dzoom = pow(1. / ZOOM_CHANGE, iTimeDelta);\n    \n    if (dzoom != 1.) {\n        vec2 uv = iMouse.xy / iResolution.xy;\n        vec2 pos = (uv - vec2(.5, .5)) * 2.;\n        pos.x *= iResolution.x / iResolution.y;\n        pos = pos / state.z + state.xy;\n        state.xy = pos + (state.xy - pos) / dzoom;\n        state.z *= dzoom;\n    }\n    if (state.z < ZOOM_MIN)\n        state.z = ZOOM_MIN;\n    \n    fragColor = state;\n}",
+   "name": "Buffer A",
+   "description": "",
+   "type": "buffer"
+  }
+ ]
+}

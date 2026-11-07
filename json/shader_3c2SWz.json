@@ -1,0 +1,37 @@
+{
+ "ver": "0.1",
+ "info": {
+  "id": "3c2SWz",
+  "date": "1743382035",
+  "viewed": 56,
+  "name": "DVD shiny blob",
+  "description": "Smooth DVD smooth-like blob",
+  "likes": 1,
+  "published": "Public",
+  "usePreview": 0,
+  "tags": [
+   "sdf",
+   "blob",
+   "bounce",
+   "dvd"
+  ],
+  "hasliked": 0,
+  "parentid": "",
+  "parentname": ""
+ },
+ "renderpass": [
+  {
+   "inputs": [],
+   "outputs": [
+    {
+     "id": "4dfGRr",
+     "channel": 0
+    }
+   ],
+   "code": "const float angle = 1.;\nconst float speed = 200.;\nconst vec2 radius = vec2(75., 50.);\n\nvec2 circle(float time) {\n    vec2 fakeRes = iResolution.xy - radius*2.;\n    \n    vec2 move = vec2(cos(angle), sin(angle));\n    vec2 pos = vec2(.5, .5)*fakeRes + move*(speed*time);\n    \n    pos.x = mod(pos.x, fakeRes.x*2.);\n    pos.y = mod(pos.y, fakeRes.y*2.);\n    \n    // bounce\n    if (pos.x > fakeRes.x) pos.x = fakeRes.x*2. - pos.x;\n    if (pos.y > fakeRes.y) pos.y = fakeRes.y*2. - pos.y;\n    \n    // set anchor\n    return pos + radius;\n}\n\nfloat sdf(vec2 pos, vec2 circle) {\n    float dx = (pos.x-circle.x);\n    float dy = (pos.y-circle.y) * radius.x / radius.y;\n    \n    return sqrt(dx*dx + dy*dy) - radius.x;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    float acc = 0.;\n\n    for (float i = 0.; i < 10.; i += 1.)\n        acc += sdf(fragCoord.xy, circle(iTime - i/20.));\n    \n    float dist = acc/10.;\n\n    float c = dist < -10. ? 1. : dist < 0. ? .5 + sqrt(-dist/10.)/2. : exp(-dist/50.-1.);\n    fragColor = vec4(c, c, c, 1.);\n}",
+   "name": "Image",
+   "description": "",
+   "type": "image"
+  }
+ ]
+}

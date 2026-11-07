@@ -1,0 +1,36 @@
+{
+ "ver": "0.1",
+ "info": {
+  "id": "tX3BRl",
+  "date": "1770846109",
+  "viewed": 56,
+  "name": "warping linkedin banner testing",
+  "description": "warping linkedin banner testing",
+  "likes": 1,
+  "published": "Public",
+  "usePreview": 0,
+  "tags": [
+   "banner",
+   "trigonometry",
+   "linkedin"
+  ],
+  "hasliked": 0,
+  "parentid": "",
+  "parentname": ""
+ },
+ "renderpass": [
+  {
+   "inputs": [],
+   "outputs": [
+    {
+     "id": "4dfGRr",
+     "channel": 0
+    }
+   ],
+   "code": "vec2 warp(vec2 uv) {\n    float x = uv.x;\n    float y = uv.y;\n    \n    x += cos(iTime*.2);\n    y += sin(iTime*.2);\n    x = (x*.6+.2)*2.;\n    y = y*2.;\n    return vec2(x*7. + cos((x+5.)*(y*.5-3.)*3.), y*3. + sin((x*.8+.3)*(y*.6+2.)*4.) + sin((x*.2+.3)*(y*.3+2.)*3.));\n}\n\nfloat getHeight(vec2 uv) {\n    float c = (cos(3.*cos(uv.x) + 5.*sin(uv.y)) + 1.) / 2.;\n    if (c < .95)\n        return 0.;\n    return (c-.95) * 20.;\n}\n\nvec2 getGradient(vec2 uv) {\n    float d = .1;\n    float h_x1 = getHeight(uv + vec2(-d, 0.));\n    float h_x2 = getHeight(uv + vec2(d, 0.));\n    float h_y1 = getHeight(uv + vec2(0., d));\n    float h_y2 = getHeight(uv + vec2(0., -d));\n    vec2 g = vec2(\n        (h_x2-h_x1) / (2.*d),\n        (h_y2-h_y1) / (2.*d)\n    );\n    \n    float l = length(g);\n    return l == 0. ? g : g / l;\n}\n\nvec3 getCol(vec2 fragCoord) {\n    vec2 uv = fragCoord/iResolution.xy;\n    vec2 uv_w = warp(uv);\n\n    vec2 gradient = getGradient(uv_w);\n    \n    vec3 col1 = vec3(137., 201., 255.) / 255.;\n    vec3 col2 = vec3(243., 149., 109.) / 255.;\n    vec3 col3 = vec3(73., 111., 151.) / 255.;\n    vec3 back_col = col1 + (col2-col1) * uv.x;\n    back_col += (col3-back_col) * (1.-uv.y);\n    \n    float light = (gradient.x+gradient.y+4.) / 6. + .4;\n    return back_col * light;\n}\n\nvec4 aalias(vec2 fragCoord, int count) {\n    vec3 acc = vec3(0., 0., 0.);\n    \n    for (int x = 0; x < count; x++)\n    for (int y = 0; y < count; y++)\n        acc += getCol(fragCoord + vec2(float(x) / float(count), float(y) / float(count)));\n    \n    return vec4(acc / float(count * count), 1.);\n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    fragColor = aalias(fragCoord, 4);\n}",
+   "name": "Image",
+   "description": "",
+   "type": "image"
+  }
+ ]
+}

@@ -1,0 +1,51 @@
+{
+ "ver": "0.1",
+ "info": {
+  "id": "3cV3zW",
+  "date": "1776781774",
+  "viewed": 78,
+  "name": "Image upscaling comparison",
+  "description": "Simple image upscale algorithms comparisons: nearest-neighbor, linear interpolation, median",
+  "likes": 4,
+  "published": "Public",
+  "usePreview": 0,
+  "tags": [
+   "comparison",
+   "pixelated",
+   "upscale"
+  ],
+  "hasliked": 0,
+  "parentid": "",
+  "parentname": ""
+ },
+ "renderpass": [
+  {
+   "inputs": [
+    {
+     "id": "4dfGRn",
+     "filepath": "/media/a/8de3a3924cb95bd0e95a443fff0326c869f9d4979cd1d5b6e94e2a01f5be53e9.jpg",
+     "type": "texture",
+     "channel": 0,
+     "sampler": {
+      "filter": "mipmap",
+      "wrap": "repeat",
+      "vflip": "true",
+      "srgb": "false",
+      "internal": "byte"
+     },
+     "published": 1
+    }
+   ],
+   "outputs": [
+    {
+     "id": "4dfGRr",
+     "channel": 0
+    }
+   ],
+   "code": "const float border_width = .01; // proportion of column width\nconst float res = 64.; // in width\nconst float num_cols = 3.;\nconst float scroll_speed = .03; // number of full width scrolls per second\n\nconst vec2[] inter_dirs = vec2[](\n    vec2(.001, -1.),\n    vec2(1., .001),\n    vec2(0., 1.),\n    vec2(-1., 0.)\n);\nconst vec2[] point_dirs = vec2[](\n    vec2(-1., 1.),\n    vec2(1., 1.),\n    vec2(1., -1.),\n    vec2(-1., -1.)\n);\n\nvec3 lerp(vec3 a, vec3 b, float t) {\n    return a + (b-a)*t;\n}\n\nfloat compareCols(vec3 a, vec3 b) {\n    return (abs(a.x-b.x) + abs(a.y-b.y) + abs(a.z-b.z)) / 3.;\n}\n\nfloat dot_self(vec3 u) {\n    return dot(u, u);\n}\n\n// returns vec4(vec2(pix pos), vec2(pos within pix))\nvec4 getPixel(vec2 uv, vec2 gridRes) {\n    vec2 pos = uv *= gridRes;\n    return vec4(floor(pos), mod(pos, 1.));\n}\n\nvec3 getPixColor(vec2 pixel, vec2 gridRes) {\n    // prevent interpolation issues\n    ivec2 texCoord = ivec2(pixel / gridRes * iChannelResolution[0].xy);\n    \n    // use procedural test image\n    //return mod((pixel.x + pixel.y*.3) * .25, 2.) < 1. ? vec3(0., 0., 0.) : vec3(1., 1., 1.);\n    \n    // use iChannel0\n    return texelFetch(iChannel0, texCoord, 0).rgb;\n}\n\n// no smoothing\nvec3 method0(vec2 uv, vec2 gridRes) {\n    return getPixColor(getPixel(uv, gridRes).xy, gridRes);\n}\n\n// lerp\nvec3 method1(vec2 uv, vec2 gridRes) {\n    vec4 pixel = getPixel(uv, gridRes);\n    vec2 pixPos = pixel.xy;\n    vec2 t = pixel.zw;\n    \n    vec3 nw = getPixColor(pixPos, gridRes);\n    vec3 ne = getPixColor(pixPos + vec2(1., 0.), gridRes);\n    vec3 sw = getPixColor(pixPos + vec2(0., 1.), gridRes);\n    vec3 se = getPixColor(pixPos + vec2(1., 1.), gridRes);\n    \n    return lerp(lerp(nw, ne, t.x), lerp(sw, se, t.x), t.y);\n}\n\n// median\nvec3 method2(vec2 uv, vec2 gridRes) {\n    vec3 average = method1(uv, gridRes);\n    \n    vec2 pixPos = getPixel(uv, gridRes).xy;\n    \n    vec3 nw = getPixColor(pixPos, gridRes);\n    vec3 ne = getPixColor(pixPos + vec2(1., 0.), gridRes);\n    vec3 sw = getPixColor(pixPos + vec2(0., 1.), gridRes);\n    vec3 se = getPixColor(pixPos + vec2(1., 1.), gridRes);\n    \n    float nw_d = dot_self(nw-average);\n    float ne_d = dot_self(ne-average);\n    float sw_d = dot_self(sw-average);\n    float se_d = dot_self(se-average);\n    \n    if (nw_d < ne_d) {\n        if (nw_d < sw_d)\n            return nw_d < se_d ? nw : se;\n        return sw_d < se_d ? sw : se;\n    }\n    if (ne_d < sw_d)\n        return ne_d < se_d ? ne : se;\n    return sw_d < se_d ? sw : se;\n}\n\n// custom interpolation test\nvec3 method3(vec2 uv, vec2 gridRes) {\n    vec4 pixel = getPixel(uv, gridRes);\n    vec2 pixPos = pixel.xy;\n    vec2 modPos = pixel.zw;\n    //modPos = (3. - 2. * modPos) * modPos * modPos;\n    \n    vec3[] colors = vec3[](\n        getPixColor(pixPos, gridRes), // nw\n        getPixColor(pixPos + vec2(1., 0.), gridRes), // ne\n        getPixColor(pixPos + vec2(1., 1.), gridRes), // se\n        getPixColor(pixPos + vec2(0., 1.), gridRes) // sw\n    );\n    \n    // find the direction of the biggest changes in color (edges)\n    vec2 controlPoint = vec2(0., 0.);\n    for (int i = 0; i < 4; i++)\n        controlPoint += inter_dirs[i] * compareCols(colors[i], colors[(i + 1) & 3]);\n    \n    float angle = atan(controlPoint.y, controlPoint.x);\n    float ca = cos(angle), sa = sin(angle);\n    vec2 angle_vec = vec2(ca, sa);\n    vec2 line_vec = vec2(-sa, ca);\n    \n    // find the colors on both sides of that line\n    vec3 col_a = vec3(0., 0., 0.), col_b = vec3(0., 0., 0.);\n    for (int i = 0; i < 4; i++) {\n        float dot_ = dot(line_vec, point_dirs[i]);\n        if (dot_ > 0.) col_a += colors[i] * (dot_ * dot_);\n        else col_b += colors[i] * (dot_ * dot_);\n    }\n    \n    // find where the transition should be\n    vec3 average_col = (colors[0] + colors[1] + colors[2] + colors[3]) * .25;\n    float dist_a = compareCols(col_a, average_col);\n    float dist_b = compareCols(col_b, average_col);\n    float threshold = (.707*dist_b/dist_a-.707) / (1.+dist_b/dist_a);\n    \n    float t = dot(modPos - vec2(.5, .5), angle_vec);\n    return t > threshold ? col_b : col_a;\n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    vec2 gridRes = vec2(res, iResolution.y/iResolution.x * res);\n    \n    vec2 uv = fragCoord/iResolution.xy;\n    \n    // scroll\n    float scroll_x = mod(uv.x + iTime * scroll_speed, 1.);\n\n    // draw lines\n    if (mod(scroll_x * num_cols + border_width/2., 1.) < border_width) {\n        fragColor = vec4(0., 0., 0., 1.);\n        return;\n    }\n    \n    // choose interpolation method\n    int index = int(scroll_x * num_cols);\n    switch(index) {\n        case 1:\n            fragColor = vec4(method1(uv, gridRes), 1.);\n            return;\n        case 2:\n            fragColor = vec4(method2(uv, gridRes), 1.);\n            return;\n    }\n    \n    fragColor = vec4(method0(uv, gridRes), 1.);\n}",
+   "name": "Image",
+   "description": "",
+   "type": "image"
+  }
+ ]
+}

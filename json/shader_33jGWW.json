@@ -1,0 +1,36 @@
+{
+ "ver": "0.1",
+ "info": {
+  "id": "33jGWW",
+  "date": "0",
+  "viewed": 0,
+  "name": "Procedural imperfect normal map",
+  "description": "Procedural normal map, displayed as colors, to use for surfaces with imperfections",
+  "likes": 0,
+  "published": "Private",
+  "usePreview": 0,
+  "tags": [
+   "procedural",
+   "noise",
+   "normalmap"
+  ],
+  "hasliked": 0,
+  "parentid": "",
+  "parentname": ""
+ },
+ "renderpass": [
+  {
+   "inputs": [],
+   "outputs": [
+    {
+     "id": "4dfGRr",
+     "channel": 0
+    }
+   ],
+   "code": "const float curvature = .01;\nconst float size_step = 10.;\n\nconst int octaves = 3;\nconst int angles = 3;\n\nvec2 rotate(vec2 pos, float angle) {\n    float c = cos(angle), s = sin(angle);\n    \n    return vec2(c*pos.x - s*pos.y, s*pos.x + c*pos.y);\n}\n\nfloat get_height(vec2 uv) {\n    float h = 1.;\n    \n    float a = 1.;\n    for (int m = 1; m <= octaves; m++) {\n        float mult = float(m)*size_step;\n\n        for (int i = 0; i < angles; i++, a += 1.) {\n            vec2 pos = rotate(uv, a + sin(uv.x*a + uv.y*mult)*curvature);\n            float crease = -clamp((abs(mod(pos.x*mult, 1.)-.5)-.4)*10., 0., 1.);\n            h += crease;\n        }\n    }\n\n    return clamp(h, 0., 1.);\n}\n\nvec3 get_normal(vec2 uv) {\n    // convolution\n    vec2 pixel = vec2(1., 1.)/iResolution.xy;\n\n    float left = get_height(uv+vec2(-pixel.x, 0.));\n    float right = get_height(uv+vec2(pixel.x, 0.));\n    float top = get_height(uv+vec2(0., -pixel.y));\n    float bottom = get_height(uv+vec2(0., pixel.y));\n    \n    return normalize(vec3(left-right, top-bottom, 2.));\n}\n\nvec4 to_color(vec3 normal) {\n    // converts a normal vector to a color\n    return vec4(normal*.5 + .5, 1.);\n}\n\nvec4 to_grayscale(float height) {\n    // converts a height to a grayscale color (height is assumed to go from 0. to 1.)\n    return vec4(height, height, height, 1.);\n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    vec2 uv = fragCoord/iResolution.xy;\n    \n    fragColor = to_color(get_normal(uv));\n    //fragColor = to_grayscale(get_height(uv));\n}",
+   "name": "Image",
+   "description": "",
+   "type": "image"
+  }
+ ]
+}

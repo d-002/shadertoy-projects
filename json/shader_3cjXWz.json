@@ -1,0 +1,34 @@
+{
+ "ver": "0.1",
+ "info": {
+  "id": "3cjXWz",
+  "date": "1743381994",
+  "viewed": 39,
+  "name": "bad gradient weighted voronoi",
+  "description": "bad gradient weighted voronoi",
+  "likes": 1,
+  "published": "Unlisted",
+  "usePreview": 0,
+  "tags": [
+   "voronoi"
+  ],
+  "hasliked": 0,
+  "parentid": "",
+  "parentname": ""
+ },
+ "renderpass": [
+  {
+   "inputs": [],
+   "outputs": [
+    {
+     "id": "4dfGRr",
+     "channel": 0
+    }
+   ],
+   "code": "const vec2 center = vec2(0., 0.);\nconst float x_span = 20.;\n\nvec2 A = vec2(4., 3.5), B = vec2(-1.5, 4.), C = vec2(-3., -4.5);\nvec3 weights = vec3(1., 2., 1.);\n\nfloat point_r2 = .01;\nfloat line_r = .03;\n\nfloat dist2(vec2 a, vec2 b) {\n    float dx = a.x-b.x, dy = a.y-b.y;\n    return dx*dx + dy*dy;\n}\n\nbool in_line(vec2 pos, vec2 a, vec2 b) {\n    float dx = b.x-a.x, dy = b.y-a.y;\n    \n    if (abs(dx) < abs(dy))\n        return abs(pos.x - a.x - dx*(pos.y-a.y)/dy) < line_r;\n    return abs(pos.y - a.y - dy*(pos.x-a.x)/dx) < line_r;\n}\n\nbool hit_point(vec2 pos) {\n    if (dist2(pos, A) < point_r2) return true;\n    if (dist2(pos, B) < point_r2) return true;\n    if (dist2(pos, C) < point_r2) return true;\n    return false;\n}\n\nbool hit_line(vec2 pos) {\n    if (in_line(pos, A, B)) return true;\n    if (in_line(pos, A, C)) return true;\n    if (in_line(pos, B, C)) return true;\n    return false;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    // move points around to test things\n    A.y = 2.*cos(iTime*1.3) + 2.;\n    B.y = cos(iTime*1.7) + 3.;\n    C.x = 2.*cos(iTime) - 1.;\n\n    // get coord pos\n    vec2 coord = (fragCoord / iResolution.x - vec2(.5, .5*iResolution.y/iResolution.x)) * x_span - center;\n\n    if (hit_point(coord)) fragColor = vec4(1.);\n    else if (hit_line(coord)) fragColor = vec4(.3);\n    \n    else {\n        float dA = distance(coord, A);\n        float dB = distance(coord, B);\n        float dC = distance(coord, C);\n        float average_dist = (dA+dB+dC)/3.;\n        float r = 1. - abs(weights.x - average_dist/dA);\n        float g = 1. - abs(weights.y - average_dist/dB);\n        float b = 1. - abs(weights.z - average_dist/dC);\n        \n        fragColor = vec4(r*r, g*g, b*b, 1.);\n    }\n}",
+   "name": "Image",
+   "description": "",
+   "type": "image"
+  }
+ ]
+}
