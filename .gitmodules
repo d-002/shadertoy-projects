@@ -1,0 +1,3 @@
+[submodule "shadertoy-vibe"]
+	path = shadertoy-vibe
+	url = git@github.com:d-002/shadertoy-vibe
